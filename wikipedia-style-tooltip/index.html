@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wikipedia-style Tooltip Demo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="content">
+        <h1>Wikipedia-style Tooltip Demo</h1>
+        
+        <p>
+            This is a demonstration of Wikipedia-style tooltips. Hover over the links below to see tooltips with images and text.
+            For example, 
+            <a href="#" 
+            data-tooltip 
+            data-title="Mark Zuckerberg" 
+            data-image="images/mark-zuckerberg.jpg"
+            data-text="Mark Elliot Zuckerberg (born May 14, 1984) is an American businessman and programmer. He is the co-founder, chairman, and CEO of Meta Platforms (formerly Facebook)."
+            data-footer="From Wikipedia, the free encyclopedia">Mark Zuckerberg</a> is the CEO of Meta.
+        </p>
+
+        <p>
+            Another example: <a href="#" data-tooltip data-title="Facebook" 
+            data-image="images/facebook-logo.png"
+            data-image-type="logo"
+            data-text="Facebook is a social networking service owned by Meta Platforms. Founded in 2004 by Mark Zuckerberg and others, it has grown to become one of the world's largest social media platforms."
+            data-footer="From Wikipedia, the free encyclopedia">Facebook</a> was founded in 2004.
+        </p>
+
+        <p>
+            You can also hover over <a href="#" data-tooltip data-title="Meta Platforms" 
+            data-image="images/meta-logo.png"
+            data-image-type="logo"
+            data-text="Meta Platforms, Inc., doing business as Meta, is an American multinational technology conglomerate. It owns Facebook, Instagram, WhatsApp, and other products."
+            data-footer="From Wikipedia, the free encyclopedia">Meta Platforms</a> to see another tooltip.
+        </p>
+
+        <p>
+            Here's a tooltip without an image: <a href="#" data-tooltip data-title="Harvard University" 
+            data-text="Harvard University is a private Ivy League research university in Cambridge, Massachusetts. Founded in 1636, it is the oldest institution of higher learning in the United States."
+            data-footer="From Wikipedia, the free encyclopedia">Harvard University</a> is one of the most prestigious universities.
+        </p>
+    </div>
+
+    <div class="tooltip" id="tooltip">
+        <img class="tooltip-image" id="tooltip-image" src="" alt="" style="display: none;">
+        <div class="tooltip-content">
+            <div class="tooltip-title" id="tooltip-title"></div>
+            <div class="tooltip-text" id="tooltip-text"></div>
+        </div>
+        <div class="tooltip-footer" id="tooltip-footer"></div>
+    </div>
+
+    <script>
+        const tooltip = document.getElementById('tooltip');
+        const tooltipImage = document.getElementById('tooltip-image');
+        const tooltipTitle = document.getElementById('tooltip-title');
+        const tooltipText = document.getElementById('tooltip-text');
+        const tooltipFooter = document.getElementById('tooltip-footer');
+
+        let hoverTimeout;
+        let currentLink = null;
+
+        // Get all links with tooltip data
+        const tooltipLinks = document.querySelectorAll('a[data-tooltip]');
+
+        tooltipLinks.forEach(link => {
+            link.addEventListener('mouseenter', function(e) {
+                currentLink = this;
+                
+                // Clear any existing timeout
+                clearTimeout(hoverTimeout);
+                
+                // Set tooltip content
+                const title = this.getAttribute('data-title') || '';
+                const text = this.getAttribute('data-text') || '';
+                const image = this.getAttribute('data-image') || '';
+                const footer = this.getAttribute('data-footer') || '';
+
+                tooltipTitle.textContent = title;
+                tooltipText.textContent = text;
+                tooltipFooter.textContent = footer;
+
+                // Handle image
+                if (image) {
+                    tooltipImage.src = image;
+                    tooltipImage.alt = title;
+                    tooltipImage.style.display = 'block';
+                    
+                    // Check if it's a logo
+                    const imageType = this.getAttribute('data-image-type');
+                    if (imageType === 'logo') {
+                        tooltipImage.classList.add('logo-image');
+                    } else {
+                        tooltipImage.classList.remove('logo-image');
+                    }
+                } else {
+                    tooltipImage.style.display = 'none';
+                }
+
+                // Show tooltip after a short delay (like Wikipedia)
+                hoverTimeout = setTimeout(() => {
+                    positionTooltip(e, this);
+                    // Force reflow for smooth animation
+                    tooltip.offsetHeight;
+                    tooltip.classList.add('visible');
+                }, 300);
+            });
+
+            link.addEventListener('mouseleave', function() {
+                clearTimeout(hoverTimeout);
+                tooltip.classList.remove('visible');
+                currentLink = null;
+            });
+
+            link.addEventListener('mousemove', function(e) {
+                if (currentLink === this && tooltip.classList.contains('visible')) {
+                    positionTooltip(e, this);
+                }
+            });
+        });
+
+        // Position tooltip relative to mouse/link
+        function positionTooltip(e, link) {
+            const linkRect = link.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+            const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+            // Calculate center of link
+            const linkCenterX = linkRect.left + (linkRect.width / 2);
+            
+            // Start with tooltip centered on link
+            let left = linkCenterX - (tooltipRect.width / 2) + scrollX;
+            let top = linkRect.top + scrollY - tooltipRect.height - 5;
+
+            // Adjust if tooltip goes off screen horizontally
+            if (left < scrollX + 10) {
+                left = scrollX + 10;
+            } else if (left + tooltipRect.width > scrollX + window.innerWidth - 5) {
+                left = scrollX + window.innerWidth - tooltipRect.width - 5;
+            }
+
+            // If tooltip would go above viewport, show below instead
+            if (top < scrollY + 10) {
+                top = linkRect.bottom + scrollY + 8;
+                tooltip.classList.add('arrow-up');
+            } else {
+                tooltip.classList.remove('arrow-up');
+            }
+
+            // Calculate arrow position: where the link center is relative to the tooltip
+            const arrowLeft = linkCenterX - left + scrollX;
+            
+            // Ensure arrow stays within tooltip bounds (with some padding)
+            const constrainedArrowLeft = Math.max(5, Math.min(arrowLeft, tooltipRect.width - 5));
+
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+            tooltip.style.setProperty('--arrow-left', constrainedArrowLeft + 'px');
+        }
+
+        // Hide tooltip when mouse leaves the tooltip itself
+        tooltip.addEventListener('mouseenter', () => {
+            clearTimeout(hoverTimeout);
+        });
+
+        tooltip.addEventListener('mouseleave', () => {
+            tooltip.classList.remove('visible');
+        });
+    </script>
+</body>
+</html>
